@@ -1,0 +1,20 @@
+---
+- name: Back up Ignition named volume
+  hosts: ignition_servers
+  become: true
+
+  tasks:
+    - name: Ensure backup path exists
+      ansible.builtin.file:
+        path: "{{ ignition_backup_path }}"
+        state: directory
+        mode: "0755"
+
+    - name: Back up version-controlled folders from named volume
+      ansible.builtin.command:
+        cmd: >-
+          docker run --rm
+          -v {{ ignition_volume_name }}:/data:ro
+          -v {{ ignition_backup_path }}:/backup
+          alpine:3.20
+          sh -lc 'tar -czf /backup/ignition-data-$(date +%Y%m%d-%H%M%S).tar.gz -C /data projects gateways user-lib modules'

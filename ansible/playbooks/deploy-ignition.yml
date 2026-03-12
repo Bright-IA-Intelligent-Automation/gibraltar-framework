@@ -1,0 +1,64 @@
+---
+- name: Deploy approved Ignition source into Docker named volume
+  hosts: ignition_servers
+  become: true
+  vars:
+    ignition_source_root: "{{ playbook_dir }}/../../ignition-src"
+    ignition_folders:
+      - projects
+      - gateways
+      - user-lib
+      - modules
+
+  tasks:
+    - name: Ensure release path exists
+      ansible.builtin.file:
+        path: "{{ ignition_release_path }}"
+        state: directory
+        mode: "0755"
+
+    - name: Ensure backup path exists
+      ansible.builtin.file:
+        path: "{{ ignition_backup_path }}"
+        state: directory
+        mode: "0755"
+
+    - name: Stage approved Ignition source on target
+      ansible.posix.synchronize:
+        src: "{{ ignition_source_root }}/"
+        dest: "{{ ignition_release_path }}/ignition-src/"
+        delete: true
+        recursive: true
+
+    - name: Create backup of current named volume content
+      ansible.builtin.command:
+        cmd: >-
+          docker run --rm
+          -v {{ ignition_volume_name }}:/data:ro
+          -v {{ ignition_backup_path }}:/backup
+          alpine:3.20
+          sh -lc 'tar -czf /backup/ignition-data-$(date +%Y%m%d-%H%M%S).tar.gz -C /data projects gateways user-lib modules 2>/dev/null || true'
+
+    - name: Stop Ignition container
+      community.docker.docker_container:
+        name: "{{ ignition_container_name }}"
+        state: stopped
+
+    - name: Sync approved source into named volume
+      ansible.builtin.command:
+        cmd: >-
+          docker run --rm
+          -v {{ ignition_volume_name }}:/data
+          -v {{ ignition_release_path }}/ignition-src:/src:ro
+          alpine:3.20
+          sh -lc 'set -e;
+          for folder in {{ ignition_folders | join(" ") }}; do
+            rm -rf "/data/${folder}";
+            mkdir -p "/data/${folder}";
+            if [ -d "/src/${folder}" ]; then cp -a "/src/${folder}/." "/data/${folder}/"; fi;
+          done'
+
+    - name: Start Ignition container
+      community.docker.docker_container:
+        name: "{{ ignition_container_name }}"
+        state: started

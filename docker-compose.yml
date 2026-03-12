@@ -1,0 +1,58 @@
+services:
+  ignition:
+    image: inductiveautomation/ignition:${IGNITION_TAG}
+    container_name: ${IGNITION_CONTAINER_NAME}
+    ports:
+      - "${IGNITION_HTTP_PORT}:8088"
+      - "${IGNITION_HTTPS_PORT}:8043"
+    environment:
+      ACCEPT_IGNITION_EULA: "Y"
+      GATEWAY_ADMIN_USERNAME: ${IGNITION_ADMIN_USERNAME}
+      GATEWAY_ADMIN_PASSWORD: ${IGNITION_ADMIN_PASSWORD}
+      TZ: ${TZ}
+    volumes:
+      - ignition_data:/usr/local/bin/ignition/data
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:${POSTGRES_TAG}
+    container_name: ${POSTGRES_CONTAINER_NAME}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: ${TZ}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: ${PORTAINER_CONTAINER_NAME}
+    ports:
+      - "${PORTAINER_PORT}:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    restart: unless-stopped
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: ${DOZZLE_CONTAINER_NAME}
+    ports:
+      - "${DOZZLE_PORT}:8080"
+    environment:
+      DOZZLE_LEVEL: ${DOZZLE_LEVEL}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+volumes:
+  ignition_data:
+    name: ${IGNITION_VOLUME_NAME}
+  postgres_data:
+    name: ${POSTGRES_VOLUME_NAME}
+  portainer_data:
+    name: ${PORTAINER_VOLUME_NAME}

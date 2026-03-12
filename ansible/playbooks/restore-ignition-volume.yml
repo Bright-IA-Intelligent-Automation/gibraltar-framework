@@ -1,0 +1,38 @@
+---
+- name: Restore Ignition named volume from backup archive
+  hosts: ignition_servers
+  become: true
+  vars_prompt:
+    - name: restore_archive
+      prompt: Full path to the backup archive on the target server
+      private: false
+
+  tasks:
+    - name: Check that restore archive exists
+      ansible.builtin.stat:
+        path: "{{ restore_archive }}"
+      register: restore_archive_stat
+
+    - name: Abort if restore archive is missing
+      ansible.builtin.fail:
+        msg: "Restore archive not found: {{ restore_archive }}"
+      when: not restore_archive_stat.stat.exists
+
+    - name: Stop Ignition container
+      community.docker.docker_container:
+        name: "{{ ignition_container_name }}"
+        state: stopped
+
+    - name: Restore archive into named volume
+      ansible.builtin.command:
+        cmd: >-
+          docker run --rm
+          -v {{ ignition_volume_name }}:/data
+          -v {{ restore_archive | dirname }}:/backup:ro
+          alpine:3.20
+          sh -lc 'rm -rf /data/projects /data/gateways /data/user-lib /data/modules && mkdir -p /data && tar -xzf "/backup/{{ restore_archive | basename }}" -C /data'
+
+    - name: Start Ignition container
+      community.docker.docker_container:
+        name: "{{ ignition_container_name }}"
+        state: started
