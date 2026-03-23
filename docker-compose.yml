@@ -1,58 +1,65 @@
 services:
   ignition:
-    image: inductiveautomation/ignition:${IGNITION_TAG}
-    container_name: ${IGNITION_CONTAINER_NAME}
+    image: inductiveautomation/ignition:8.3.4
+    container_name: ignition_gibraltar
     ports:
-      - "${IGNITION_HTTP_PORT}:8088"
-      - "${IGNITION_HTTPS_PORT}:8043"
+      - "8088:8088"
+      - "8043:8043"
     environment:
-      ACCEPT_IGNITION_EULA: "Y"
-      GATEWAY_ADMIN_USERNAME: ${IGNITION_ADMIN_USERNAME}
-      GATEWAY_ADMIN_PASSWORD: ${IGNITION_ADMIN_PASSWORD}
-      TZ: ${TZ}
+      - ACCEPT_IGNITION_EULA=Y
+      - GATEWAY_ADMIN_USERNAME=${IGNITION_ADMIN_USERNAME}
+      - GATEWAY_ADMIN_PASSWORD=${IGNITION_ADMIN_PASSWORD}
+      - IGNITION_EDITION=standard
+      - TZ=${TZ}
+      - GATEWAY_MODULES_ENABLED=all
+    # n - Ignition Gateway Name
+    # m - Max Memory (in MB)
+    command: >
+      -n ignition-gibraltar
+      -m 4096
+      --
+      wrapper.java.initmemory=512
+      -Dignition.allowunsignedmodules=true
     volumes:
-      - ignition_data:/usr/local/bin/ignition/data
-    restart: unless-stopped
+      - ignition_data_gibraltar:/usr/local/bin/ignition/data
+    restart: always
     depends_on:
       - postgres
 
   postgres:
-    image: postgres:${POSTGRES_TAG}
-    container_name: ${POSTGRES_CONTAINER_NAME}
+    image: postgres:16
+    container_name: postgres_gibraltar
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_DB: ignition_gibraltar
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       TZ: ${TZ}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
+      - postgres_data_gibraltar:/var/lib/postgresql/data
+    restart: always
 
   portainer:
     image: portainer/portainer-ce:latest
-    container_name: ${PORTAINER_CONTAINER_NAME}
+    container_name: portainer_gibraltar
     ports:
-      - "${PORTAINER_PORT}:9000"
+      - "9000:9000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
-    restart: unless-stopped
+      - portainer_data_gibraltar:/data
+    restart: always
 
   dozzle:
     image: amir20/dozzle:latest
-    container_name: ${DOZZLE_CONTAINER_NAME}
+    container_name: dozzle_gibraltar
     ports:
-      - "${DOZZLE_PORT}:8080"
+      - "8080:8080"
     environment:
-      DOZZLE_LEVEL: ${DOZZLE_LEVEL}
+      DOZZLE_LEVEL: info
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    restart: unless-stopped
+    restart: always
 
 volumes:
-  ignition_data:
-    name: ${IGNITION_VOLUME_NAME}
-  postgres_data:
-    name: ${POSTGRES_VOLUME_NAME}
-  portainer_data:
-    name: ${PORTAINER_VOLUME_NAME}
+  ignition_data_gibraltar:
+  postgres_data_gibraltar:
+  portainer_data_gibraltar:

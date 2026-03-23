@@ -1,6 +1,6 @@
 # Secrets and local overrides
-.env
-.env.*
+# .env
+# .env.*
 
 # Ansible artifacts
 *.retry
