@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="${GIT_REPO_URL:?GIT_REPO_URL must be set (e.g. https://github.com/<org>/<repo>.git)}"
-BRANCH="${GIT_BRANCH:-master}"
+REPO_URL="${GIT_REPO_URL:?GIT_REPO_URL must be set in .env}"
+BRANCH="${GIT_BRANCH:?GIT_BRANCH must be set in .env}"
 POLL_INTERVAL="${CD_POLL_INTERVAL:-300}"
 CHECKOUT_DIR="/opt/gibraltar-cd/repo"
 

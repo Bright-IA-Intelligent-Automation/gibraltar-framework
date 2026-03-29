@@ -3,21 +3,21 @@
   hosts: "{{ target_hosts | default('ignition_servers') }}"
   become: true
   vars:
-    git_branch: master
+    git_repo_url: "{{ lookup('env', 'GIT_REPO_URL') }}"
+    git_branch: "{{ lookup('env', 'GIT_BRANCH') }}"
     cd_work_dir: /opt/gibraltar-cd
     cd_timer_on_calendar: "*:0/5"
     ansible_pull_inventory: ansible/inventories/local/hosts.yml
     ansible_pull_playbook: ansible/playbooks/deploy-ignition.yml
 
   pre_tasks:
-    - name: Validate required git_repo_url is provided
+    - name: Validate required git settings are provided
       ansible.builtin.assert:
         that:
-          - git_repo_url is defined
           - git_repo_url | length > 0
+          - git_branch | length > 0
         fail_msg: >-
-          Set git_repo_url, for example:
-          -e git_repo_url=https://github.com/<org>/<repo>.git
+          Set GIT_REPO_URL and GIT_BRANCH in .env.
 
   tasks:
     - name: Ensure CD working directory exists

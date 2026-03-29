@@ -1,17 +1,16 @@
 # Ignition Docker + Ansible
 
-This repository keeps Ignition source-controlled files in `ignition-src/` and deploys approved changes into a Docker named volume with Ansible.
+This repository contains Ansible deployment automation for Ignition. Ignition source content is now stored in `https://github.com/Bright-IA-Intelligent-Automation/gibraltar-ignition-src` and is pulled during deployment.
 
 ## Layout
 
 - `docker-compose.yml` - Ignition, PostgreSQL, Portainer, and Dozzle
-- `ignition-src/` - version-controlled Ignition content
 - `ansible/` - inventory, playbooks, and CI/CD bootstrap assets
 - `scripts/` - local helper scripts
 
 ## Tracked Ignition folders
 
-Track only these folders under `ignition-src/`:
+Track only these folders in the source repository:
 
 - `projects/`
 - `gateways/`
@@ -22,7 +21,7 @@ Track only these folders under `ignition-src/`:
 
 Use this when your Ansible control machine can SSH to the Ignition server.
 
-1. Export local Ignition named volume into `ignition-src/`.
+1. Export local Ignition named volume into the `gibraltar-ignition-src` repository.
 2. Commit and push changes.
 3. Open and merge a pull request.
 4. Run deploy:
@@ -64,6 +63,9 @@ Optional settings:
 - `cd_timer_on_calendar` (default: `*:0/5`) controls polling frequency.
 - `ansible_pull_inventory` (default: `ansible/inventories/local/hosts.yml`).
 - `ansible_pull_playbook` (default: `ansible/playbooks/deploy-ignition.yml`).
+- `IGNITION_SOURCE_REPO_URL` (default: `https://github.com/Bright-IA-Intelligent-Automation/gibraltar-ignition-src.git`).
+- `IGNITION_SOURCE_REPO_BRANCH` (default: `master`).
+- `IGNITION_SOURCE_SUBPATH` (default: empty; set if source folders live in a subdirectory of that repo).
 
 ### Private repository authentication (if needed)
 
@@ -74,6 +76,9 @@ sudo install -m 0750 -d /etc/gibraltar-cd
 sudo bash -lc 'cat > /etc/gibraltar-cd/env <<EOF
 GIT_REPO_URL=https://<token>@github.com/<org>/<repo>.git
 GIT_BRANCH=master
+IGNITION_SOURCE_REPO_URL=https://<token>@github.com/Bright-IA-Intelligent-Automation/gibraltar-ignition-src.git
+IGNITION_SOURCE_REPO_BRANCH=master
+IGNITION_SOURCE_SUBPATH=
 EOF'
 sudo chmod 0640 /etc/gibraltar-cd/env
 ```

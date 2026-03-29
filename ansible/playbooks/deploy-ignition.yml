@@ -3,7 +3,16 @@
   hosts: "{{ target_hosts | default('ignition_servers') }}"
   become: true
   vars:
-    ignition_source_root: "{{ playbook_dir }}/../../ignition-src"
+    ignition_source_repo_url: "{{ lookup('env', 'IGNITION_SOURCE_REPO_URL') }}"
+    ignition_source_repo_branch: "{{ lookup('env', 'IGNITION_SOURCE_REPO_BRANCH') }}"
+    ignition_source_repo_checkout_dir: "{{ ignition_release_path }}/ignition-src-repo"
+    ignition_source_subpath: "{{ lookup('env', 'IGNITION_SOURCE_SUBPATH') | default('', true) }}"
+    ignition_source_root: >-
+      {{
+        ignition_source_repo_checkout_dir
+        if (ignition_source_subpath | length) == 0
+        else (ignition_source_repo_checkout_dir ~ '/' ~ ignition_source_subpath)
+      }}
     ignition_folders:
       - projects
       - gateways
@@ -11,6 +20,14 @@
       - modules
 
   tasks:
+    - name: Validate Ignition source repository URL is configured
+      ansible.builtin.assert:
+        that:
+          - ignition_source_repo_url | length > 0
+          - ignition_source_repo_branch | length > 0
+        fail_msg: >-
+          Set IGNITION_SOURCE_REPO_URL and IGNITION_SOURCE_REPO_BRANCH in .env.
+
     - name: Ensure release path exists
       ansible.builtin.file:
         path: "{{ ignition_release_path }}"
@@ -22,6 +39,14 @@
         path: "{{ ignition_backup_path }}"
         state: directory
         mode: "0755"
+
+    - name: Pull latest Ignition source repository
+      ansible.builtin.git:
+        repo: "{{ ignition_source_repo_url }}"
+        dest: "{{ ignition_source_repo_checkout_dir }}"
+        version: "{{ ignition_source_repo_branch }}"
+        update: true
+        force: true
 
     - name: Stage approved Ignition source on target
       ansible.posix.synchronize:
