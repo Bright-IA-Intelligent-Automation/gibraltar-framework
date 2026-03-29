@@ -1,6 +1,6 @@
 ---
 - name: Back up Ignition named volume
-  hosts: ignition_servers
+  hosts: "{{ target_hosts | default('ignition_servers') }}"
   become: true
 
   tasks:

@@ -1,6 +1,6 @@
 ---
 - name: Restore Ignition named volume from backup archive
-  hosts: ignition_servers
+  hosts: "{{ target_hosts | default('ignition_servers') }}"
   become: true
   vars_prompt:
     - name: restore_archive

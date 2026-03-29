@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -f /etc/gibraltar-cd/env ]]; then
+  # shellcheck disable=SC1091
+  source /etc/gibraltar-cd/env
+fi
+
+REPO_URL="${GIT_REPO_URL:-{{ git_repo_url }}}"
+BRANCH="${GIT_BRANCH:-{{ git_branch }}}"
+WORK_DIR="{{ cd_work_dir }}"
+CHECKOUT_DIR="${WORK_DIR}/repo"
+
+if ! command -v ansible-pull >/dev/null 2>&1; then
+  echo "ansible-pull is not installed. Install ansible-core on this server." >&2
+  exit 1
+fi
+
+/usr/bin/env ansible-galaxy collection install -r "${CHECKOUT_DIR}/ansible/requirements.yml"
+
+/usr/bin/env ansible-pull \
+  --accept-host-key \
+  --clean \
+  -U "${REPO_URL}" \
+  -C "${BRANCH}" \
+  -d "${CHECKOUT_DIR}" \
+  -i "${CHECKOUT_DIR}/{{ ansible_pull_inventory }}" \
+  -e target_hosts=localhost \
+  "{{ ansible_pull_playbook }}"

@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Gibraltar ansible-pull deployment periodically
+
+[Timer]
+OnBootSec=2min
+OnCalendar={{ cd_timer_on_calendar }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

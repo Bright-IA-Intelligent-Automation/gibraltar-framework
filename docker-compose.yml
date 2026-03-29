@@ -59,6 +59,26 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: always
 
+  ansible-runner:
+    build:
+      context: ./ansible
+      dockerfile: Dockerfile.ansible-runner
+    container_name: ansible_runner_gibraltar
+    environment:
+      - GIT_REPO_URL=${GIT_REPO_URL}
+      - GIT_BRANCH=${GIT_BRANCH:-master}
+      - CD_POLL_INTERVAL=${CD_POLL_INTERVAL:-300}
+    volumes:
+      # Docker socket so the playbook can stop/start containers and run alpine helper containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount at identical paths so docker volume mounts issued via the socket resolve on the host
+      - /opt/gibraltar-cd:/opt/gibraltar-cd
+      - /opt/ignition-release:/opt/ignition-release
+      - /opt/ignition-backups:/opt/ignition-backups
+    restart: always
+    depends_on:
+      - ignition
+
 volumes:
   ignition_data_gibraltar:
   postgres_data_gibraltar:

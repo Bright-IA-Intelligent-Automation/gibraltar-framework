@@ -1,0 +1,33 @@
+FROM python:3.12-slim
+
+# System packages: git + ssh for ansible-pull, rsync for synchronize module,
+# docker-ce-cli for the docker commands in the deploy playbook
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    openssh-client \
+    rsync \
+    gnupg \
+    curl \
+    ca-certificates \
+    && install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg \
+       | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
+    && . /etc/os-release \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+       https://download.docker.com/linux/debian ${VERSION_CODENAME} stable" \
+       > /etc/apt/sources.list.d/docker.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends docker-ce-cli \
+    && rm -rf /var/lib/apt/lists/*
+
+# ansible-core + Python docker SDK (required by community.docker collection)
+RUN pip install --no-cache-dir ansible-core docker
+
+# Install required Ansible collections into a fixed path
+COPY requirements.yml /tmp/requirements.yml
+RUN ansible-galaxy collection install -r /tmp/requirements.yml
+
+COPY ansible-runner-entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

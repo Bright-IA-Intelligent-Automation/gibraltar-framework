@@ -1,6 +1,6 @@
 ---
 - name: Deploy approved Ignition source into Docker named volume
-  hosts: ignition_servers
+  hosts: "{{ target_hosts | default('ignition_servers') }}"
   become: true
   vars:
     ignition_source_root: "{{ playbook_dir }}/../../ignition-src"
