@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="${GIT_REPO_URL:?GIT_REPO_URL must be set in .env}"
-BRANCH="${GIT_BRANCH:?GIT_BRANCH must be set in .env}"
-POLL_INTERVAL="${CD_POLL_INTERVAL:-300}"
+REPO_URL="${IGNITION_SOURCE_REPO_URL:?IGNITION_SOURCE_REPO_URL must be set in .env}"
+BRANCH="${IGNITION_SOURCE_REPO_BRANCH:?IGNITION_SOURCE_REPO_BRANCH must be set in .env}"
+POLL_INTERVAL="${CD_POLL_INTERVAL:?CD_POLL_INTERVAL must be set in .env}"
 CHECKOUT_DIR="/opt/gibraltar-cd/repo"
 
 echo "=== Gibraltar ansible-pull CD runner ==="
@@ -21,7 +21,7 @@ while true; do
       -U "${REPO_URL}" \
       -C "${BRANCH}" \
       -d "${CHECKOUT_DIR}" \
-      -i "${CHECKOUT_DIR}/ansible/inventories/local/hosts.yml" \
+      -i "${CHECKOUT_DIR}/ansible/inventories/hosts.yml" \
       -e target_hosts=localhost \
       ansible/playbooks/deploy-ignition.yml \
     && echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ansible-pull succeeded" \

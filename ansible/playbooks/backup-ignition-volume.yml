@@ -2,6 +2,10 @@
 - name: Back up Ignition named volume
   hosts: "{{ target_hosts | default('ignition_servers') }}"
   become: true
+  vars:
+    ignition_folders:
+      - projects
+      - config/resources
 
   tasks:
     - name: Ensure backup path exists
@@ -17,4 +21,4 @@
           -v {{ ignition_volume_name }}:/data:ro
           -v {{ ignition_backup_path }}:/backup
           alpine:3.20
-          sh -lc 'tar -czf /backup/ignition-data-$(date +%Y%m%d-%H%M%S).tar.gz -C /data projects gateways user-lib modules'
+          sh -lc 'tar -czf /backup/ignition-data-$(date +%Y%m%d-%H%M%S).tar.gz -C /data {{ ignition_folders | join(" ") }}'

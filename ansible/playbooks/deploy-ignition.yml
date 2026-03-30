@@ -3,31 +3,20 @@
   hosts: "{{ target_hosts | default('ignition_servers') }}"
   become: true
   vars:
-    ignition_source_repo_url: "{{ lookup('env', 'IGNITION_SOURCE_REPO_URL') }}"
-    ignition_source_repo_branch: "{{ lookup('env', 'IGNITION_SOURCE_REPO_BRANCH') }}"
-    ignition_source_repo_checkout_dir: "{{ ignition_release_path }}/ignition-src-repo"
+    # ansible-pull already checked out the source repo; resolve the root from this playbook's location
     ignition_source_subpath: "{{ lookup('env', 'IGNITION_SOURCE_SUBPATH') | default('', true) }}"
     ignition_source_root: >-
       {{
-        ignition_source_repo_checkout_dir
+        (playbook_dir ~ '/../..')
         if (ignition_source_subpath | length) == 0
-        else (ignition_source_repo_checkout_dir ~ '/' ~ ignition_source_subpath)
+        else (playbook_dir ~ '/../..' ~ '/' ~ ignition_source_subpath)
       }}
     ignition_folders:
       - projects
-      - gateways
-      - user-lib
-      - modules
+      - config/resources
+    ignition_volume_data_path: "/var/lib/docker/volumes/{{ ignition_volume_name }}/_data"
 
   tasks:
-    - name: Validate Ignition source repository URL is configured
-      ansible.builtin.assert:
-        that:
-          - ignition_source_repo_url | length > 0
-          - ignition_source_repo_branch | length > 0
-        fail_msg: >-
-          Set IGNITION_SOURCE_REPO_URL and IGNITION_SOURCE_REPO_BRANCH in .env.
-
     - name: Ensure release path exists
       ansible.builtin.file:
         path: "{{ ignition_release_path }}"
@@ -40,20 +29,19 @@
         state: directory
         mode: "0755"
 
-    - name: Pull latest Ignition source repository
-      ansible.builtin.git:
-        repo: "{{ ignition_source_repo_url }}"
-        dest: "{{ ignition_source_repo_checkout_dir }}"
-        version: "{{ ignition_source_repo_branch }}"
-        update: true
-        force: true
-
     - name: Stage approved Ignition source on target
       ansible.posix.synchronize:
         src: "{{ ignition_source_root }}/"
         dest: "{{ ignition_release_path }}/ignition-src/"
         delete: true
         recursive: true
+
+    - name: Ensure tracked source folders exist in staged content
+      ansible.builtin.file:
+        path: "{{ ignition_release_path }}/ignition-src/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop: "{{ ignition_folders }}"
 
     - name: Create backup of current named volume content
       ansible.builtin.command:
@@ -62,28 +50,19 @@
           -v {{ ignition_volume_name }}:/data:ro
           -v {{ ignition_backup_path }}:/backup
           alpine:3.20
-          sh -lc 'tar -czf /backup/ignition-data-$(date +%Y%m%d-%H%M%S).tar.gz -C /data projects gateways user-lib modules 2>/dev/null || true'
+          sh -lc 'tar -czf /backup/ignition-data-$(date +%Y%m%d-%H%M%S).tar.gz -C /data {{ ignition_folders | join(" ") }} 2>/dev/null || true'
 
-    - name: Stop Ignition container
-      community.docker.docker_container:
-        name: "{{ ignition_container_name }}"
-        state: stopped
+    - name: Ensure tracked folders exist in Ignition volume path
+      ansible.builtin.file:
+        path: "{{ ignition_volume_data_path }}/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop: "{{ ignition_folders }}"
 
-    - name: Sync approved source into named volume
-      ansible.builtin.command:
-        cmd: >-
-          docker run --rm
-          -v {{ ignition_volume_name }}:/data
-          -v {{ ignition_release_path }}/ignition-src:/src:ro
-          alpine:3.20
-          sh -lc 'set -e;
-          for folder in {{ ignition_folders | join(" ") }}; do
-            rm -rf "/data/${folder}";
-            mkdir -p "/data/${folder}";
-            if [ -d "/src/${folder}" ]; then cp -a "/src/${folder}/." "/data/${folder}/"; fi;
-          done'
-
-    - name: Start Ignition container
-      community.docker.docker_container:
-        name: "{{ ignition_container_name }}"
-        state: started
+    - name: Sync tracked folders into Ignition volume
+      ansible.posix.synchronize:
+        src: "{{ ignition_release_path }}/ignition-src/{{ item }}/"
+        dest: "{{ ignition_volume_data_path }}/{{ item }}/"
+        delete: true
+        recursive: true
+      loop: "{{ ignition_folders }}"

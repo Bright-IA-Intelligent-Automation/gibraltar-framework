@@ -2,6 +2,10 @@
 - name: Restore Ignition named volume from backup archive
   hosts: "{{ target_hosts | default('ignition_servers') }}"
   become: true
+  vars:
+    ignition_folders:
+      - projects
+      - config/resources
   vars_prompt:
     - name: restore_archive
       prompt: Full path to the backup archive on the target server
@@ -30,7 +34,7 @@
           -v {{ ignition_volume_name }}:/data
           -v {{ restore_archive | dirname }}:/backup:ro
           alpine:3.20
-          sh -lc 'rm -rf /data/projects /data/gateways /data/user-lib /data/modules && mkdir -p /data && tar -xzf "/backup/{{ restore_archive | basename }}" -C /data'
+          sh -lc 'set -e; for folder in {{ ignition_folders | join(" ") }}; do rm -rf "/data/${folder}"; done; mkdir -p /data && tar -xzf "/backup/{{ restore_archive | basename }}" -C /data'
 
     - name: Start Ignition container
       community.docker.docker_container:

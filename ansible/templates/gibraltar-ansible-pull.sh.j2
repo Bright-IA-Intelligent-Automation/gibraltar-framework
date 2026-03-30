@@ -6,8 +6,8 @@ if [[ -f /etc/gibraltar-cd/env ]]; then
   source /etc/gibraltar-cd/env
 fi
 
-REPO_URL="${GIT_REPO_URL:-{{ git_repo_url }}}"
-BRANCH="${GIT_BRANCH:-{{ git_branch }}}"
+REPO_URL="${IGNITION_SOURCE_REPO_URL:-{{ git_repo_url }}}"
+BRANCH="${IGNITION_SOURCE_REPO_BRANCH:-{{ git_branch }}}"
 WORK_DIR="{{ cd_work_dir }}"
 CHECKOUT_DIR="${WORK_DIR}/repo"
 

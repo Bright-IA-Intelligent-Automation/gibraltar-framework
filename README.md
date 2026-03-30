@@ -13,9 +13,7 @@ This repository contains Ansible deployment automation for Ignition. Ignition so
 Track only these folders in the source repository:
 
 - `projects/`
-- `gateways/`
-- `user-lib/`
-- `modules/`
+- `config/resources/`
 
 ## Manual deploy (push model)
 

@@ -65,8 +65,6 @@ services:
       dockerfile: Dockerfile.ansible-runner
     container_name: ansible_runner_gibraltar
     environment:
-      - GIT_REPO_URL=${GIT_REPO_URL}
-      - GIT_BRANCH=${GIT_BRANCH}
       - CD_POLL_INTERVAL=${CD_POLL_INTERVAL}
       - IGNITION_SOURCE_REPO_URL=${IGNITION_SOURCE_REPO_URL}
       - IGNITION_SOURCE_REPO_BRANCH=${IGNITION_SOURCE_REPO_BRANCH}
