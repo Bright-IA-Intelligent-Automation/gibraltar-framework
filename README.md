@@ -1,107 +1,131 @@
-# Ignition Docker + Ansible
+# Gibraltar Ignition Runtime + Ansible Polling
 
-This repository contains Ansible deployment automation for Ignition. Ignition source content is now stored in `https://github.com/Bright-IA-Intelligent-Automation/gibraltar-ignition-src` and is pulled during deployment.
+This project runs Ignition with Docker Compose and continuously deploys approved Ignition file content from Git using Ansible.
 
-## Layout
+Current source of truth for Ignition content:
 
-- `docker-compose.yml` - Ignition, PostgreSQL, Portainer, and Dozzle
-- `ansible/` - inventory, playbooks, and CI/CD bootstrap assets
-- `scripts/` - local helper scripts
+- `IGNITION_SOURCE_REPO_URL` (configured in `.env`)
+- Default branch is controlled by `IGNITION_SOURCE_REPO_BRANCH`
 
-## Tracked Ignition folders
+## Architecture
 
-Track only these folders in the source repository:
+### Docker Compose services
+
+- `ignition`: Ignition Gateway container
+- `postgres`: PostgreSQL backing database
+- `portainer`: optional container management UI
+- `dozzle`: optional log viewer
+- `ansible-runner`: poller that executes `ansible-pull` on an interval
+
+### Data flow
+
+1. `ansible-runner` wakes up every `CD_POLL_INTERVAL` seconds.
+2. It runs `ansible-pull` against `IGNITION_SOURCE_REPO_URL` and `IGNITION_SOURCE_REPO_BRANCH`.
+3. `ansible-pull` checks out the repo into `/opt/gibraltar-cd/repo`.
+4. It executes `ansible/playbooks/deploy-ignition.yml` using the local inventory.
+5. The playbook stages content to `/opt/ignition-release/ignition-src/`.
+6. The playbook backs up tracked folders from the Ignition volume into `/opt/ignition-backups/`.
+7. The playbook synchronizes tracked folders into Docker volume path `/var/lib/docker/volumes/<volume>/_data`.
+
+No container stop/start is performed during deploy.
+
+## Repository Layout
+
+- `docker-compose.yml`: service orchestration including `ansible-runner`
+- `ansible/inventories/hosts.yml`: single local inventory used by all playbooks
+- `ansible/playbooks/deploy-ignition.yml`: poll-driven deployment logic
+- `ansible/playbooks/backup-ignition-volume.yml`: manual backup
+- `ansible/playbooks/restore-ignition-volume.yml`: manual restore
+- `ansible/ansible-runner-entrypoint.sh`: poll loop + `ansible-pull` command
+
+## Inventory Model
+
+This project uses one inventory file: `ansible/inventories/hosts.yml`.
+
+It is local-only (`ansible_connection: local`) and provides:
+
+- `ignition_volume_name` (for example `gibraltar_ignition_data_gibraltar`)
+- `ignition_release_path` (`/opt/ignition-release`)
+- `ignition_backup_path` (`/opt/ignition-backups`)
+
+The deploy playbook derives the writable volume filesystem path as:
+
+- `/var/lib/docker/volumes/{{ ignition_volume_name }}/_data`
+
+Note: this assumes default Docker data-root. If your Docker data-root is customized, update this path logic accordingly.
+
+## Tracked Ignition Folders
+
+Based on current 8.3 alignment, deployment/backup/restore tracks:
 
 - `projects/`
 - `config/resources/`
 
-## Manual deploy (push model)
+These are controlled in each playbook via the `ignition_folders` variable.
 
-Use this when your Ansible control machine can SSH to the Ignition server.
+## Configuration (.env)
 
-1. Export local Ignition named volume into the `gibraltar-ignition-src` repository.
-2. Commit and push changes.
-3. Open and merge a pull request.
-4. Run deploy:
+Required variables:
 
-```bash
-cd ansible
-ansible-playbook playbooks/deploy-ignition.yml
-```
+- `CD_POLL_INTERVAL` (seconds)
+- `IGNITION_SOURCE_REPO_URL`
+- `IGNITION_SOURCE_REPO_BRANCH`
+- `IGNITION_SOURCE_SUBPATH` (empty if content is at repo root)
 
-## CI/CD behind VPN (recommended pull model)
+Example:
 
-If GitHub-hosted runners cannot reach your server over SSH/VPN, use a pull model:
-
-1. GitHub Actions validates every PR and `master` merge.
-2. The server runs `ansible-pull` on a timer.
-3. After merge to `master`, server pulls latest repo and applies `deploy-ignition.yml` locally.
-
-This works with outbound-only internet from the server and does not require inbound access from GitHub Actions.
-
-### One-time server setup
-
-Server prerequisites:
-
-- Docker and Docker CLI installed.
-- `ansible-core` installed on the server (`ansible-pull` command available).
-- Git installed on the server.
-
-Run the bootstrap playbook against your server:
-
-```bash
-cd ansible
-ansible-playbook playbooks/bootstrap-ansible-pull-cd.yml \
-	-e git_repo_url=https://github.com/<org>/<repo>.git \
-	-e git_branch=master
-```
-
-Optional settings:
-
-- `cd_timer_on_calendar` (default: `*:0/5`) controls polling frequency.
-- `ansible_pull_inventory` (default: `ansible/inventories/local/hosts.yml`).
-- `ansible_pull_playbook` (default: `ansible/playbooks/deploy-ignition.yml`).
-- `IGNITION_SOURCE_REPO_URL` (default: `https://github.com/Bright-IA-Intelligent-Automation/gibraltar-ignition-src.git`).
-- `IGNITION_SOURCE_REPO_BRANCH` (default: `master`).
-- `IGNITION_SOURCE_SUBPATH` (default: empty; set if source folders live in a subdirectory of that repo).
-
-### Private repository authentication (if needed)
-
-Create `/etc/gibraltar-cd/env` on the server:
-
-```bash
-sudo install -m 0750 -d /etc/gibraltar-cd
-sudo bash -lc 'cat > /etc/gibraltar-cd/env <<EOF
-GIT_REPO_URL=https://<token>@github.com/<org>/<repo>.git
-GIT_BRANCH=master
-IGNITION_SOURCE_REPO_URL=https://<token>@github.com/Bright-IA-Intelligent-Automation/gibraltar-ignition-src.git
+```dotenv
+CD_POLL_INTERVAL=300
+IGNITION_SOURCE_REPO_URL=https://github.com/Bright-IA-Intelligent-Automation/gibraltar-ignition-src.git
 IGNITION_SOURCE_REPO_BRANCH=master
 IGNITION_SOURCE_SUBPATH=
-EOF'
-sudo chmod 0640 /etc/gibraltar-cd/env
 ```
 
-For better security, use a GitHub deploy key instead of embedding a token in URL.
+## Operations
 
-### Local inventory for server-side pull
-
-`ansible/inventories/local/hosts.yml` is configured for local execution on the Docker host and uses:
-
-- container name: `ignition_gibraltar`
-- volume name: `gibraltar_ignition_data_gibraltar`
-
-Adjust these if your environment differs.
-
-### Verify timer on server
+### Start or refresh stack
 
 ```bash
-systemctl status gibraltar-ansible-pull.timer
-systemctl list-timers gibraltar-ansible-pull.timer
-journalctl -u gibraltar-ansible-pull.service -n 100 --no-pager
+docker compose up -d --build
 ```
 
-## Notes
+### View polling logs
 
-- Production uses a Docker named volume for Ignition data.
-- Deploy playbook backs up tracked folders before applying approved files.
-- Update placeholder values in `ansible/inventories/prod/hosts.yml` before using push-model deploy.
+```bash
+docker logs -f ansible_runner_gibraltar
+```
+
+### Manual one-off deploy
+
+```bash
+cd ansible
+ansible-playbook -i inventories/hosts.yml playbooks/deploy-ignition.yml -e target_hosts=localhost
+```
+
+### Manual backup
+
+```bash
+cd ansible
+ansible-playbook -i inventories/hosts.yml playbooks/backup-ignition-volume.yml -e target_hosts=localhost
+```
+
+### Manual restore
+
+```bash
+cd ansible
+ansible-playbook -i inventories/hosts.yml playbooks/restore-ignition-volume.yml -e target_hosts=localhost
+```
+
+## Playbook Execution Sequence
+
+`ansible-runner-entrypoint.sh` continuously executes:
+
+1. `ansible-pull` checkout/update
+2. `deploy-ignition.yml` tasks in order:
+	- ensure directories
+	- stage source
+	- ensure tracked directories
+	- backup tracked volume folders
+	- synchronize tracked folders into the Ignition volume
+
+If deployment fails, the loop logs the error and retries at the next polling interval.
