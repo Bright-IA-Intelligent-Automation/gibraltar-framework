@@ -3,13 +3,13 @@
   hosts: "{{ target_hosts | default('ignition_servers') }}"
   become: true
   vars:
-    # ansible-pull already checked out the source repo; resolve the root from this playbook's location
+    ignition_source_repo_checkout_dir: "{{ lookup('env', 'IGNITION_SOURCE_CHECKOUT_DIR') | default('/opt/gibraltar-cd/repo', true) }}"
     ignition_source_subpath: "{{ lookup('env', 'IGNITION_SOURCE_SUBPATH') | default('', true) }}"
     ignition_source_root: >-
       {{
-        (playbook_dir ~ '/../..')
+        ignition_source_repo_checkout_dir
         if (ignition_source_subpath | length) == 0
-        else (playbook_dir ~ '/../..' ~ '/' ~ ignition_source_subpath)
+        else (ignition_source_repo_checkout_dir ~ '/' ~ ignition_source_subpath)
       }}
     ignition_folders:
       - projects

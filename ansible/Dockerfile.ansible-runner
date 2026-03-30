@@ -27,6 +27,10 @@ RUN pip install --no-cache-dir ansible-core docker
 COPY requirements.yml /tmp/requirements.yml
 RUN ansible-galaxy collection install -r /tmp/requirements.yml
 
+# Bundle framework playbooks/inventory into the runner image.
+COPY playbooks/ /opt/gibraltar-framework/playbooks/
+COPY inventories/ /opt/gibraltar-framework/inventories/
+
 COPY ansible-runner-entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
