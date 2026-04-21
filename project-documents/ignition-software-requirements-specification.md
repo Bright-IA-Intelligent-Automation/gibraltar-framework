@@ -24,6 +24,9 @@ This specification is intended to remove ambiguity around what the Ignition syst
 In scope:
 
 - Ignition visualization for operations, maintenance, supervision, and management
+- Conveyor control integration within the Ignition supervisory workflow
+- Painting booth integration within the Ignition supervisory workflow
+- ABB robotics integration for robot control signal exchange through PLC interfaces
 - HMI controls and command workflows coordinated with PLC/robot systems
 - KPI definitions, calculations, and dashboarding
 - Alarm and event management
@@ -34,9 +37,14 @@ In scope:
 Out of scope:
 
 - PLC ladder logic implementation
-- Robot path development and tuning
+- ABB robot programming, path development, tuning, and robot-side commissioning (external vendor)
 - Mechanical fixture design
 - Final paint chemistry tuning
+
+Responsibility note:
+
+- Bright IA is responsible for integrating the ABB robot with the PLC for robot control signal exchange.
+- Ignition software scope remains unchanged from this SRS.
 
 ## 3. Reference Context
 
@@ -52,8 +60,7 @@ The Ignition platform will act as the supervisory layer integrating:
 
 - Painting booth control systems (Bright IA)
 - Monorail conveyor signals (Rohner)
-- Sandblasting status interface (Gibson)
-- Loading/unloading status interface (Rohner)
+- ABB robot-to-PLC control signal interface (ABB programming by external vendor; integration by Bright IA)
 - Paint system status (with Graco interface details pending)
 - Safety and interlock states from PLCs
 
@@ -269,7 +276,7 @@ Acceptance requires closure of all Critical and High defects, plus approved work
 | OI-001 | Final HMI page list and visual standard approval | Bright IA + Client | FAT |
 | OI-002 | Final KPI target values and thresholds | Gibraltar + Bright IA | FAT |
 | OI-003 | Paint system ready signal list from Graco package | Gibraltar | SAT |
-| OI-004 | Final interface signal map with Rohner and Gibson | Rohner / Gibson / Bright IA | SAT |
+| OI-004 | Final interface signal map with Rohner and ABB robot vendor | Rohner / ABB Vendor / Bright IA | SAT |
 | OI-005 | Final recipe parameter list and offset rules | Bright IA | FAT |
 | OI-006 | Final retention policy and report distribution matrix | Gibraltar + Bright IA | SAT |
 | OI-007 | Cybersecurity authentication standard (AD/IdP/local) | Gibraltar IT + Bright IA | FAT |
@@ -288,4 +295,5 @@ Acceptance requires closure of all Critical and High defects, plus approved work
 
 | Rev | Date | Description |
 |---|---|---|
+| Rev.1 | 04/21/2026 | Scope update: ABB programming assigned to external vendor; Bright IA responsible for ABB-PLC signal integration; sand blasting and loading/unloading removed from scope |
 | Rev.0 | 03/23/2026 | Initial draft created from current project scope and known interface assumptions |
